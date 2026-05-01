@@ -10,7 +10,7 @@ from telegram.ext import (
 
 TOKEN = os.environ.get("TOKEN", "")
 CHANNEL_ID = int(os.environ.get("CHANNEL_ID", "0"))
-ADMIN_USERNAME = "ADMIN_USERNAME"
+ADMIN_USERNAME = "innbetween"
 ADMIN_ID = int(os.environ.get("ADMIN_ID", "7644277689"))
 DB_FILE = "referrals.db"
 
@@ -632,7 +632,7 @@ def main():
     app.add_handler(CommandHandler("addbonus", addbonus))
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(ChatJoinRequestHandler(handle_join_request))
-    app.job_queue.run_repeating(check_monthly_report, interval=60, first=10)
+    # job_queue disabled
 
     print("Bot is running!")
     app.run_polling(allowed_updates=["message", "chat_join_request", "callback_query"])
