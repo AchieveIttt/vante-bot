@@ -1,6 +1,7 @@
 import logging
 import sqlite3
 import json
+import os
 from datetime import datetime, timedelta
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
@@ -8,10 +9,10 @@ from telegram.ext import (
     ChatJoinRequestHandler, ContextTypes
 )
 
-TOKEN = "YOUR_NEW_TOKEN_HERE"
-CHANNEL_ID = -0
-ADMIN_USERNAME = "YOUR_USERNAME_HERE"
-ADMIN_ID = 0
+TOKEN = os.environ.get("TOKEN", "")
+CHANNEL_ID = int(os.environ.get("CHANNEL_ID", "0"))
+ADMIN_USERNAME = "innbetween"
+ADMIN_ID = int(os.environ.get("ADMIN_ID", "7644277689"))
 DB_FILE = "referrals.db"
 
 # ─── DATABASE ───────────────────────────────────────────────────────────────
