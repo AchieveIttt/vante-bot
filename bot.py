@@ -8,10 +8,10 @@ from telegram.ext import (
     ChatJoinRequestHandler, ContextTypes
 )
 
-TOKEN = "8674328200:AAEzvxmI2sQvBPDXDGx2EJu8r3872V8PxpA"
-CHANNEL_ID = -1003974509759
-ADMIN_USERNAME = "innbetween"
-ADMIN_ID = 7644277689
+TOKEN = "YOUR_NEW_TOKEN_HERE"
+CHANNEL_ID = -0
+ADMIN_USERNAME = "YOUR_USERNAME_HERE"
+ADMIN_ID = 0
 DB_FILE = "referrals.db"
 
 # ─── DATABASE ───────────────────────────────────────────────────────────────
