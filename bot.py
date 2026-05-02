@@ -164,14 +164,27 @@ def is_admin(user_id):
 
 # ─── KEYBOARDS ────────────────────────────────────────────────────────────────
 
-def main_kb():
-    return InlineKeyboardMarkup([
+def main_kb(user_id=None):
+    buttons = [
         [InlineKeyboardButton("🔗 My referral link", callback_data="my_link")],
         [InlineKeyboardButton("📊 My stats", callback_data="stats_menu")],
         [InlineKeyboardButton("🏆 Levels", callback_data="levels")],
         [InlineKeyboardButton("📋 Rules", callback_data="rules")],
         [InlineKeyboardButton("💬 Contact admin", url=f"https://t.me/{ADMIN_USERNAME}")],
-    ])
+    ]
+    if user_id == ADMIN_ID:
+        buttons.append([
+            InlineKeyboardButton("💸 Payout", callback_data="admin_payout"),
+            InlineKeyboardButton("📋 All stats", callback_data="admin_allstats"),
+        ])
+        buttons.append([
+            InlineKeyboardButton("🚫 Ban list", callback_data="admin_banlist"),
+            InlineKeyboardButton("🏆 Top", callback_data="admin_top"),
+        ])
+        buttons.append([
+            InlineKeyboardButton("📢 Broadcast", callback_data="admin_broadcast"),
+        ])
+    return InlineKeyboardMarkup(buttons)
 
 def stats_kb():
     return InlineKeyboardMarkup([
@@ -230,7 +243,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     await update.message.reply_text(
         profile_text(user.id, user.first_name),
-        parse_mode="Markdown", reply_markup=main_kb()
+        parse_mode="Markdown", reply_markup=main_kb(user.id)
     )
 
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -239,10 +252,91 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = query.from_user
     uid = user.id
 
+    if query.data == "admin_payout":
+        if not is_admin(uid):
+            return
+        await query.answer()
+        if not refs:
+            await context.bot.send_message(chat_id=uid, text="No partners yet.")
+            return
+        now = datetime.now()
+        days_this_month = now.day
+        for key, d in refs.items():
+            if key in banned:
+                continue
+            joins = d["joins"]
+            earned_month, count_month = calc_period(joins, days_this_month)
+            total_earned = calc_earnings(joins, d.get("bonus", 0))
+            lvl, rate = get_level(len(joins))
+            warn_tag = "⚠️ " if key in warned else ""
+            text = (
+                f"{warn_tag}👤 *{d['first_name']}*\n"
+                f"✅ Joins this month: {count_month}\n"
+                f"💰 To pay this month: *{earned_month}€*\n"
+                f"📈 Level: {lvl} | Total earned: {total_earned}€"
+            )
+            await context.bot.send_message(chat_id=uid, text=text, parse_mode="Markdown", reply_markup=payout_kb(key))
+        return
+
+    elif query.data == "admin_allstats":
+        if not is_admin(uid):
+            return
+        await query.answer()
+        if not refs:
+            await context.bot.send_message(chat_id=uid, text="No partners yet.")
+            return
+        text = "📋 *All partners:*\n\n"
+        for key, d in refs.items():
+            n = len(d["joins"])
+            earned = calc_earnings(d["joins"], d.get("bonus", 0))
+            lvl, _ = get_level(n)
+            status = "🚫" if key in banned else ("⚠️" if key in warned else "✅")
+            text += f"{status} *{d['first_name']}* — {n} joins | Lvl {lvl} | {earned}€\n"
+        await context.bot.send_message(chat_id=uid, text=text, parse_mode="Markdown")
+        return
+
+    elif query.data == "admin_banlist":
+        if not is_admin(uid):
+            return
+        await query.answer()
+        banned_refs = [(key, d) for key, d in refs.items() if key in banned]
+        if not banned_refs:
+            await context.bot.send_message(chat_id=uid, text="No banned partners.")
+            return
+        for key, d in banned_refs:
+            kb = InlineKeyboardMarkup([[
+                InlineKeyboardButton("💬 Chat", url=f"tg://user?id={d['owner_id']}"),
+                InlineKeyboardButton("✅ Unban", callback_data=f"unban_{key}"),
+            ]])
+            await context.bot.send_message(chat_id=uid, text=f"🚫 *{d['first_name']}*\n🆔 `{d['owner_id']}`", parse_mode="Markdown", reply_markup=kb)
+        return
+
+    elif query.data == "admin_top":
+        if not is_admin(uid):
+            return
+        await query.answer()
+        now = datetime.now()
+        days_this_month = now.day
+        sorted_refs = sorted(refs.items(), key=lambda x: calc_period(x[1]["joins"], days_this_month)[1], reverse=True)
+        text = "🏆 *Top Partners This Month:*\n\n"
+        for i, (key, d) in enumerate(sorted_refs[:10], 1):
+            _, count = calc_period(d["joins"], days_this_month)
+            earned, _ = calc_period(d["joins"], days_this_month)
+            text += f"{i}. *{d['first_name']}* — {count} joins | {earned}€\n"
+        await context.bot.send_message(chat_id=uid, text=text, parse_mode="Markdown")
+        return
+
+    elif query.data == "admin_broadcast":
+        if not is_admin(uid):
+            return
+        await query.answer()
+        await context.bot.send_message(chat_id=uid, text="Use /broadcast <message> to send to all partners.")
+        return
+
     if query.data == "back":
         await query.edit_message_text(
             profile_text(uid, user.first_name),
-            parse_mode="Markdown", reply_markup=main_kb()
+            parse_mode="Markdown", reply_markup=main_kb(uid)
         )
 
     elif query.data == "rules":
