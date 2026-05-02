@@ -135,14 +135,14 @@ def get_level(n):
     if n < 15: return 1, 0.0
     elif n < 40: return 2, 0.50
     elif n < 60: return 3, 0.80
-    else: return 4, 1.20
+    else: return 4, 1.00
 
 def calc_earnings(joins, bonus=0.0):
     n = len(joins)
     e = 0.0
     e += max(0, min(n, 39) - 14) * 0.50
     e += max(0, min(n, 59) - 39) * 0.80
-    e += max(0, n - 59) * 1.20
+    e += max(0, n - 59) * 1.00
     return round(e + bonus, 2)
 
 def calc_period(joins, days):
@@ -155,7 +155,7 @@ def calc_period(joins, days):
         if pos < 14: rate = 0.0
         elif pos < 39: rate = 0.50
         elif pos < 59: rate = 0.80
-        else: rate = 1.20
+        else: rate = 1.00
         e += rate
     return round(e, 2), len(filtered)
 
@@ -186,13 +186,17 @@ def back_kb():
     return InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Back", callback_data="back")]])
 
 def payout_kb(key):
-    return InlineKeyboardMarkup([
+    is_banned = key in banned
+    rows = [
         [
             InlineKeyboardButton("💬 Chat", url=f"tg://user?id={refs[key]['owner_id']}"),
             InlineKeyboardButton("⚠️ Warn", callback_data=f"warn_{key}"),
             InlineKeyboardButton("🚫 Ban", callback_data=f"ban_{key}"),
         ]
-    ])
+    ]
+    if is_banned:
+        rows.append([InlineKeyboardButton("✅ Unban", callback_data=f"unban_{key}")])
+    return InlineKeyboardMarkup(rows)
 
 def profile_text(user_id, name):
     if user_id in user_to_ref:
@@ -250,7 +254,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "1️⃣ *Level 1* — 0–14 joins → 0€/join *(trial)*\n"
             "2️⃣ *Level 2* — 15–39 joins → 0.50€/join\n"
             "3️⃣ *Level 3* — 40–59 joins → 0.80€/join\n"
-            "4️⃣ *Level 4* — 60+ joins → 1.20€/join\n\n"
+            "4️⃣ *Level 4* — 60+ joins → 1.00€/join\n\n"
             "The more people join via your link — the higher your rate!",
             parse_mode="Markdown", reply_markup=back_kb()
         )
@@ -373,6 +377,23 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             pass
         await query.answer("Banned!", show_alert=True)
 
+    elif query.data.startswith("unban_") and is_admin(uid):
+        key = query.data[6:]
+        if key not in refs:
+            await query.answer("Partner not found", show_alert=True)
+            return
+        banned.discard(key)
+        db_set_banned(key, False)
+        try:
+            await context.bot.send_message(
+                chat_id=refs[key]["owner_id"],
+                text="✅ *You have been unbanned* from Vante Affiliate Program. Welcome back!",
+                parse_mode="Markdown"
+            )
+        except:
+            pass
+        await query.answer("Unbanned!", show_alert=True)
+
 # ─── ADMIN COMMANDS ────────────────────────────────────────────────────────────
 
 async def payout(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -442,11 +463,11 @@ async def partnerinfo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     search = context.args[0].lower()
     found = None
     for key, d in refs.items():
-        if d["first_name"].lower() == search or str(d["owner_id"]) == search:
+        if search in d["first_name"].lower() or str(d["owner_id"]) == search:
             found = (key, d)
             break
     if not found:
-        await update.message.reply_text("Partner not found.")
+        await update.message.reply_text("Partner not found. Try part of their name or user ID.")
         return
     key, d = found
     joins = d["joins"]
@@ -483,11 +504,11 @@ async def addbonus(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     found = None
     for key, d in refs.items():
-        if d["first_name"].lower() == search or str(d["owner_id"]) == search:
+        if search in d["first_name"].lower() or str(d["owner_id"]) == search:
             found = (key, d)
             break
     if not found:
-        await update.message.reply_text("Partner not found.")
+        await update.message.reply_text("Partner not found. Try part of their name or user ID.")
         return
     key, d = found
     d["bonus"] = d.get("bonus", 0) + amount
