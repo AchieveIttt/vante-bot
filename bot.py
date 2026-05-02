@@ -523,6 +523,27 @@ async def addbonus(update: Update, context: ContextTypes.DEFAULT_TYPE):
         pass
     await update.message.reply_text(f"✅ Added {amount}€ bonus to {d['first_name']}.")
 
+
+async def banlist(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not is_admin(update.effective_user.id):
+        return
+    banned_refs = [(key, d) for key, d in refs.items() if key in banned]
+    if not banned_refs:
+        await update.message.reply_text("No banned partners.")
+        return
+    for key, d in banned_refs:
+        kb = InlineKeyboardMarkup([
+            [
+                InlineKeyboardButton("💬 Chat", url=f"tg://user?id={d['owner_id']}"),
+                InlineKeyboardButton("✅ Unban", callback_data=f"unban_{key}"),
+            ]
+        ])
+        await update.message.reply_text(
+            f"🚫 *{d['first_name']}*\n🆔 `{d['owner_id']}`",
+            parse_mode="Markdown",
+            reply_markup=kb
+        )
+
 async def allstats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_admin(update.effective_user.id):
         return
@@ -646,6 +667,7 @@ def main():
     app = Application.builder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("allstats", allstats))
+    app.add_handler(CommandHandler("banlist", banlist))
     app.add_handler(CommandHandler("payout", payout))
     app.add_handler(CommandHandler("broadcast", broadcast))
     app.add_handler(CommandHandler("top", top))
